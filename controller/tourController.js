@@ -21,13 +21,27 @@ exports.getAllTours = async (req, res) => {
       query = query.sort('-createdBy');
     }
 
-    // 4:
+    // 4: Select fields
     if (req.query.fields) {
       const fields = req.query.fields.split(',').join(' ');
       query = query.select(fields);
     } else {
-      query = query.select('- __v');
+      query = query.select('-__v');
     }
+
+    // 5: Pagination
+    const page = req.query.page * 1 || 1;
+    const limit = req.query.limit * 1 || 100;
+    const skip = (page - 1) * limit;
+
+    query = query.skip(skip).limit(limit);
+
+    if (req.query.page) {
+      const numTours = await Tour.countDocuments();
+      if (skip >= numTours) throw new Error('This page does not exist');
+    }
+
+    // Execute query
     const tours = await query;
     res.status(200).json({
       status: 'success',
@@ -39,7 +53,7 @@ exports.getAllTours = async (req, res) => {
   } catch (e) {
     res.status(400).json({
       status: 'fail',
-      message: 'Invalid data sent',
+      message: e,
     });
   }
 };
